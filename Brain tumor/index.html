@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Tumor XAI Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#4f46e5',
+                        'secondary': '#facc15',
+                        'success': '#10b981',
+                        'danger': '#ef4444',
+                        'warning': '#fb923c',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+        }
+        .xai-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .xai-image:hover {
+            transform: scale(1.02);
+        }
+        .loading-ring {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 1.5rem;
+            height: 1.5rem;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+<div class="max-w-7xl mx-auto">
+    <header class="text-center mb-10">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900">Brain Tumor Classification & XAI Dashboard</h1>
+        <p class="mt-2 text-lg text-gray-600">Multi-Model Prediction and Explanation via Score-CAM, IG, and SHAP.</p>
+    </header>
+
+    <!-- Upload Section -->
+    <div id="upload-section" class="card p-6 mb-10">
+        <h2 class="text-2xl font-semibold mb-4 text-primary">1. Upload MRI Image</h2>
+        <form id="upload-form" class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <input type="file" id="mri-file" accept="image/png, image/jpeg, image/jpg" required 
+                       class="w-full text-gray-700 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer p-2.5 
+                              file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold 
+                              file:bg-primary file:text-white hover:file:bg-indigo-700">
+                <button type="submit" id="submit-btn" 
+                        class="w-full sm:w-auto px-6 py-2.5 bg-primary text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 
+                               transition duration-150 flex items-center justify-center disabled:opacity-50"
+                        disabled>
+                    <span id="button-text">Analyze Image</span>
+                    <div id="loading-spinner" class="loading-ring hidden ml-2"></div>
+                </button>
+            </div>
+            <div id="upload-preview" class="hidden mt-4">
+                <p class="font-medium text-gray-700 mb-2">Image Preview:</p>
+                <img id="image-preview" class="max-h-48 rounded-lg shadow-lg border border-gray-200" alt="MRI Preview">
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results-container" class="hidden">
+        <h2 class="text-3xl font-bold mb-6 text-gray-900 border-b pb-2">2. Analysis Results</h2>
+
+        <!-- Overall Prediction Card -->
+        <div class="card p-6 mb-8 bg-indigo-50 border-indigo-200">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-2xl font-extrabold text-gray-800">Primary Prediction (CNN)</h3>
+                <span id="cnn-label" class="px-4 py-1 text-lg font-bold rounded-full"></span>
+            </div>
+            <p class="text-gray-700">
+                <span class="font-semibold text-gray-900">Confidence:</span> <span id="cnn-conf" class="text-xl font-mono text-primary"></span>
+            </p>
+        </div>
+        
+        <!-- Model Comparison -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- ANN Card -->
+            <div class="card p-4">
+                <h4 class="text-lg font-semibold mb-2 text-indigo-700">ANN Prediction (PCA Features)</h4>
+                <p class="text-gray-700">Result: <span id="ann-pred" class="font-bold"></span></p>
+                <p class="text-sm text-gray-500">Confidence: <span id="ann-conf"></span>%</p>
+            </div>
+            <!-- Classical ML Summary -->
+            <div class="card p-4 md:col-span-2">
+                <h4 class="text-lg font-semibold mb-2 text-indigo-700">Classical ML Consensus</h4>
+                <div id="ml-comparison" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                    <!-- ML results dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- XAI Explanations Section -->
+        <h2 class="text-3xl font-bold mb-6 text-gray-900 border-b pb-2">3. XAI Explanations</h2>
+
+        <div class="space-y-10">
+            <!-- Score-CAM -->
+            <div class="card p-6">
+                <h3 class="text-xl font-bold mb-4 text-primary">Score-CAM (Where the CNN looks)</h3>
+                <p class="text-gray-600 mb-4">Highlights the regions of the image that directly contribute to the CNN's final classification score.</p>
+                <img id="cam-plot" class="xai-image mx-auto" alt="Score-CAM Visualization">
+            </div>
+
+            <!-- Integrated Gradients -->
+            <div class="card p-6">
+                <h3 class="text-xl font-bold mb-4 text-primary">Integrated Gradients (Pixel Attribution)</h3>
+                <p class="text-gray-600 mb-4">Shows how much each individual pixel contributes to the CNN's prediction (positive/negative influence).</p>
+                <img id="ig-plot" class="xai-image mx-auto" alt="Integrated Gradients Visualization">
+            </div>
+
+            <!-- SHAP -->
+            <div class="card p-6">
+                <h3 class="text-xl font-bold mb-4 text-primary">SHAP (ANN Feature Importance)</h3>
+                <p class="text-gray-600 mb-4">Explains the prediction of the ANN model by showing the impact of the PCA features (PC1, PC2, etc.) on the output.</p>
+                <img id="shap-plot" class="xai-image mx-auto" alt="SHAP Visualization">
+            </div>
+        </div>
+    </div>
+
+    <!-- Error/Message Modal -->
+    <div id="message-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full" style="z-index: 100;">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div id="modal-icon" class="mx-auto flex items-center justify-center h-12 w-12 rounded-full">
+                    <!-- Icon placeholder -->
+                </div>
+                <h3 id="modal-title" class="text-lg leading-6 font-medium text-gray-900 mt-2"></h3>
+                <div class="mt-2 px-7 py-3">
+                    <p id="modal-body" class="text-sm text-gray-500"></p>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="modal-close-btn" class="px-4 py-2 bg-primary text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-primary">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const form = document.getElementById('upload-form');
+    const fileInput = document.getElementById('mri-file');
+    const submitBtn = document.getElementById('submit-btn');
+    const buttonText = document.getElementById('button-text');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const resultsContainer = document.getElementById('results-container');
+    const uploadPreview = document.getElementById('upload-preview');
+    const imagePreview = document.getElementById('image-preview');
+    const messageModal = document.getElementById('message-modal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+
+    // Utility function to show/hide the custom modal
+    function showModal(title, body, type = 'danger') {
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+
+        // Reset icon/color
+        modalIcon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full';
+        
+        let iconClass = 'text-white';
+        let backgroundClass = '';
+
+        if (type === 'danger') {
+            backgroundClass = 'bg-danger/80';
+            iconClass += ' h-6 w-6'; // Example SVG size
+        } else if (type === 'success') {
+            backgroundClass = 'bg-success/80';
+            iconClass += ' h-6 w-6';
+        }
+        
+        modalIcon.classList.add(backgroundClass);
+        modalIcon.innerHTML = `<svg class="${iconClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${type === 'danger' ? 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' : 'M5 13l4 4L19 7'}"></path></svg>`;
+
+        modalTitle.textContent = title;
+        modalBody.textContent = body;
+        messageModal.classList.remove('hidden');
+    }
+
+    modalCloseBtn.addEventListener('click', () => {
+        messageModal.classList.add('hidden');
+    });
+
+    // Handle file input change for preview
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            const fileType = file.type;
+            const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+
+            if (!validImageTypes.includes(fileType)) {
+                 showModal('Invalid File Type', 'Please upload a JPEG or PNG image file.', 'danger');
+                 this.value = ''; // Clear the input
+                 submitBtn.disabled = true;
+                 uploadPreview.classList.add('hidden');
+                 return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                uploadPreview.classList.remove('hidden');
+                submitBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            uploadPreview.classList.add('hidden');
+            submitBtn.disabled = true;
+        }
+    });
+
+    // Handle form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+            showModal('File Missing', 'Please select an image file to analyze.', 'danger');
+            return;
+        }
+
+        // Show loading state
+        submitBtn.disabled = true;
+        buttonText.textContent = 'Analyzing...';
+        loadingSpinner.classList.remove('hidden');
+        resultsContainer.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/predict', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || result.error) {
+                const errorMessage = result.error || `Server error: ${response.status} ${response.statusText}`;
+                showModal('Prediction Failed', errorMessage, 'danger');
+                return;
+            }
+
+            // Successfully received results
+            displayResults(result);
+
+        } catch (error) {
+            console.error('Fetch error:', error);
+            showModal('Network Error', 'Could not connect to the Flask server. Please ensure the server is running.', 'danger');
+        } finally {
+            // Hide loading state
+            submitBtn.disabled = false;
+            buttonText.textContent = 'Analyze Image';
+            loadingSpinner.classList.add('hidden');
+        }
+    });
+
+    // Function to display results
+    function displayResults(data) {
+        resultsContainer.classList.remove('hidden');
+
+        // Helper for setting tumor/no-tumor colors
+        const setLabelStyle = (element, label) => {
+            element.textContent = label.toUpperCase() === 'YES' ? 'TUMOR PRESENT' : 'NO TUMOR';
+            element.className = label.toUpperCase() === 'YES' 
+                ? 'px-4 py-1 text-lg font-bold rounded-full bg-danger/20 text-danger' 
+                : 'px-4 py-1 text-lg font-bold rounded-full bg-success/20 text-success';
+        };
+
+        // 1. CNN Results
+        setLabelStyle(document.getElementById('cnn-label'), data.CNN_pred);
+        document.getElementById('cnn-conf').textContent = `${data.CNN_conf}%`;
+
+        // 2. ANN Results
+        document.getElementById('ann-pred').textContent = data.ANN_pred.toUpperCase();
+        document.getElementById('ann-conf').textContent = data.ANN_conf;
+
+        // 3. Classical ML Comparison
+        const mlContainer = document.getElementById('ml-comparison');
+        mlContainer.innerHTML = '';
+        for (const [model, result] of Object.entries(data.classical_ml)) {
+            mlContainer.innerHTML += `
+                <div class="p-2 border border-gray-100 rounded-md bg-gray-50">
+                    <span class="font-medium text-gray-900">${model.replace(/Classifier|Regression|SVC|Bayes|Neighbors/g, '').trim()}:</span> 
+                    <span class="font-bold text-xs ${result.toUpperCase() === 'YES' ? 'text-danger' : 'text-success'}">${result.toUpperCase()}</span>
+                </div>
+            `;
+        }
+        
+        // 4. XAI Visualizations
+        const xaiPlots = [
+            { id: 'cam-plot', data: data.cam_plot, name: 'Score-CAM' },
+            { id: 'ig-plot', data: data.ig_plot, name: 'Integrated Gradients' },
+            { id: 'shap-plot', data: data.shap_plot, name: 'SHAP' }
+        ];
+
+        xaiPlots.forEach(plot => {
+            const imgElement = document.getElementById(plot.id);
+            if (plot.data.startsWith('data:image/png;base64,')) {
+                imgElement.src = plot.data;
+                imgElement.classList.remove('hidden');
+                imgElement.alt = `${plot.name} Visualization`;
+            } else {
+                // If it's an error message
+                imgElement.src = '';
+                imgElement.alt = plot.data;
+                imgElement.classList.add('hidden');
+                // You could display the error text explicitly here if needed
+                console.error(`${plot.name} Error:`, plot.data);
+            }
+        });
+        
+        // Scroll to results
+        resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+
+</body>
+</html>

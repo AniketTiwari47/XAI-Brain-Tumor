@@ -1,0 +1,118 @@
+Brain Tumor Detection with Explainable AI (XAI)
+Overview
+
+This project is a Brain Tumor Detection System built using Machine Learning, Deep Learning, and Explainable AI techniques.
+The application analyzes MRI brain scans and predicts whether a tumor is present or not.
+
+In addition to predictions, the system provides model explanations using modern XAI techniques, allowing users to understand why the model made a specific prediction.
+
+The project is implemented using Flask for the web interface and multiple ML/DL models for classification.
+
+Features
+
+Brain tumor classification using MRI images
+
+Multiple model predictions:
+
+Classical Machine Learning models
+
+Artificial Neural Network (ANN)
+
+Convolutional Neural Network (CNN)
+
+Explainable AI techniques:
+
+Integrated Gradients
+
+Score-CAM
+
+SHAP explanations
+
+Web-based interface using Flask
+
+Visualization of model explanations
+
+Technologies Used
+
+Python
+
+TensorFlow / Keras
+
+Scikit-Learn
+
+OpenCV
+
+NumPy
+
+Matplotlib
+
+SHAP
+
+Flask
+
+Project Structure
+Brain-Tumor-XAI/
+
+├── app.py
+├── ml_core.py
+├── requirements.txt
+├── README.md
+├── index.html
+│
+├── static/
+│
+├── images/
+
+Installation
+
+Clone the repository:
+
+git clone https://github.com/yourusername/XAI-Brain-Tumor.git
+
+Move into the project directory:
+
+cd brain-tumor-xai
+
+Install dependencies:
+
+pip install -r requirements.txt
+Run the Application
+
+Start the Flask server:
+
+python app.py
+
+Open your browser and go to:
+
+http://127.0.0.1:5000
+
+Upload an MRI image to receive predictions and visual explanations.
+
+Explainable AI Techniques Used
+Integrated Gradients
+
+Highlights important regions in the MRI image that influenced the CNN prediction.
+
+Score-CAM
+
+Generates visual heatmaps showing which regions contributed most to the classification.
+
+SHAP (SHapley Additive exPlanations)
+
+Provides feature-level explanation for ANN predictions.
+
+Dataset
+
+MRI brain tumor images were used to train the models.
+Due to size limitations, the dataset is not included in this repository.
+
+Author
+
+Aniket Tiwari
+Abhishek Gourangacharan Nayak 
+Amrutansu Nayak 
+
+
+License
+
+This project is for educational and research purposes.

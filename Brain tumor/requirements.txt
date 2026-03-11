@@ -1,0 +1,12 @@
+flask
+tensorflow
+numpy
+opencv-python
+matplotlib
+scikit-learn
+scikit-image
+scipy
+joblib
+shap
+pillow
+gunicorn
