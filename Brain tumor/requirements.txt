@@ -10,3 +10,6 @@ joblib
 shap
 pillow
 gunicorn
+os 
+cv2
+io
